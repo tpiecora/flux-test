@@ -1,0 +1,98 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    component: stats-emitter
+    k8s-app: tectonic-stats-emitter
+  name: tectonic-stats-emitter
+  namespace: tectonic-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: stats-emitter
+      k8s-app: tectonic-stats-emitter
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        pod.alpha.kubernetes.io/init-containers: '[{"name":"tectonic-stats-extender-init","image":"quay.io/coreos/tectonic-stats-extender:487b3da4e175da96dabfb44fba65cdb8b823db2e","command":["/extender","--period=0s","--license=/etc/tectonic/licenses/license","--output=/etc/tectonic/stats/extensions","--extension=installerPlatform:$(INSTALLER_PLATFORM)","--extension=tectonicUpdaterEnabled:$(TECTONIC_UPDATER_ENABLED)","--extension=certificatesStrategy:$(CERTIFICATES_STRATEGY)"],"env":[{"name":"INSTALLER_PLATFORM","valueFrom":{"configMapKeyRef":{"name":"tectonic-config","key":"installerPlatform"}}},{"name":"CERTIFICATES_STRATEGY","valueFrom":{"configMapKeyRef":{"name":"tectonic-config","key":"certificatesStrategy"}}},{"name":"TECTONIC_UPDATER_ENABLED","valueFrom":{"configMapKeyRef":{"name":"tectonic-config","key":"tectonicUpdaterEnabled"}}}],"resources":{},"volumeMounts":[{"name":"tectonic-license-secret","readOnly":true,"mountPath":"/etc/tectonic/licenses"},{"name":"tectonic-stats","mountPath":"/etc/tectonic/stats"}],"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","imagePullPolicy":"IfNotPresent"}]'
+        pod.beta.kubernetes.io/init-containers: '[{"name":"tectonic-stats-extender-init","image":"quay.io/coreos/tectonic-stats-extender:487b3da4e175da96dabfb44fba65cdb8b823db2e","command":["/extender","--period=0s","--license=/etc/tectonic/licenses/license","--output=/etc/tectonic/stats/extensions","--extension=installerPlatform:$(INSTALLER_PLATFORM)","--extension=tectonicUpdaterEnabled:$(TECTONIC_UPDATER_ENABLED)","--extension=certificatesStrategy:$(CERTIFICATES_STRATEGY)"],"env":[{"name":"INSTALLER_PLATFORM","valueFrom":{"configMapKeyRef":{"name":"tectonic-config","key":"installerPlatform"}}},{"name":"CERTIFICATES_STRATEGY","valueFrom":{"configMapKeyRef":{"name":"tectonic-config","key":"certificatesStrategy"}}},{"name":"TECTONIC_UPDATER_ENABLED","valueFrom":{"configMapKeyRef":{"name":"tectonic-config","key":"tectonicUpdaterEnabled"}}}],"resources":{},"volumeMounts":[{"name":"tectonic-license-secret","readOnly":true,"mountPath":"/etc/tectonic/licenses"},{"name":"tectonic-stats","mountPath":"/etc/tectonic/stats"}],"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","imagePullPolicy":"IfNotPresent"}]'
+      labels:
+        component: stats-emitter
+        k8s-app: tectonic-stats-emitter
+      name: tectonic-stats-emitter
+    spec:
+      containers:
+      - command:
+        - /spartakus
+        - volunteer
+        - --cluster-id=$(CLUSTER_ID)
+        - --database=https://stats-collector.tectonic.com
+        - --extensions=/etc/tectonic/stats/extensions
+        env:
+        - name: CLUSTER_ID
+          valueFrom:
+            configMapKeyRef:
+              key: clusterID
+              name: tectonic-config
+        image: quay.io/coreos/tectonic-stats:6e882361357fe4b773adbf279cddf48cb50164c1
+        imagePullPolicy: IfNotPresent
+        name: tectonic-stats-emitter
+        terminationMessagePath: /dev/termination-log
+        volumeMounts:
+        - mountPath: /etc/tectonic/stats
+          name: tectonic-stats
+          readOnly: true
+      - command:
+        - /extender
+        - --license=/etc/tectonic/licenses/license
+        - --output=/etc/tectonic/stats/extensions
+        - --extension=installerPlatform:$(INSTALLER_PLATFORM)
+        - --extension=tectonicUpdaterEnabled:$(TECTONIC_UPDATER_ENABLED)
+        - --extension=certificatesStrategy:$(CERTIFICATES_STRATEGY)
+        env:
+        - name: INSTALLER_PLATFORM
+          valueFrom:
+            configMapKeyRef:
+              key: installerPlatform
+              name: tectonic-config
+        - name: CERTIFICATES_STRATEGY
+          valueFrom:
+            configMapKeyRef:
+              key: certificatesStrategy
+              name: tectonic-config
+        - name: TECTONIC_UPDATER_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: tectonicUpdaterEnabled
+              name: tectonic-config
+        image: quay.io/coreos/tectonic-stats-extender:487b3da4e175da96dabfb44fba65cdb8b823db2e
+        imagePullPolicy: IfNotPresent
+        name: tectonic-stats-extender
+        terminationMessagePath: /dev/termination-log
+        volumeMounts:
+        - mountPath: /etc/tectonic/licenses
+          name: tectonic-license-secret
+          readOnly: true
+        - mountPath: /etc/tectonic/stats
+          name: tectonic-stats
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: coreos-pull-secret
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: tectonic-license-secret
+        secret:
+          defaultMode: 420
+          secretName: tectonic-license-secret
+      - name: tectonic-stats

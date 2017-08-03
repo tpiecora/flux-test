@@ -1,0 +1,38 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: servicegraph
+  name: servicegraph
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: servicegraph
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        alpha.istio.io/sidecar: ignore
+      labels:
+        app: servicegraph
+    spec:
+      containers:
+      - args:
+        - --prometheusAddr=http://prometheus:9090
+        image: gcr.io/istio-testing/servicegraph:latest
+        imagePullPolicy: Always
+        name: servicegraph
+        ports:
+        - containerPort: 8088
+          protocol: TCP
+        terminationMessagePath: /dev/termination-log
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

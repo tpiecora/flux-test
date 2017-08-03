@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ratings
+  name: ratings
+  namespace: default
+spec:
+  clusterIP: 10.3.186.52
+  ports:
+  - name: http
+    port: 9080
+    protocol: TCP
+    targetPort: 9080
+  selector:
+    app: ratings
+  sessionAffinity: None
+  type: ClusterIP

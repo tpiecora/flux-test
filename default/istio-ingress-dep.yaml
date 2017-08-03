@@ -1,0 +1,51 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    istio: ingress
+  name: istio-ingress
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      istio: ingress
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        alpha.istio.io/sidecar: ignore
+      labels:
+        istio: ingress
+    spec:
+      containers:
+      - args:
+        - proxy
+        - ingress
+        - -v
+        - "2"
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: docker.io/istio/proxy_debug:0.1.6
+        imagePullPolicy: Always
+        name: istio-ingress
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        - containerPort: 443
+          protocol: TCP
+        terminationMessagePath: /dev/termination-log
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      serviceAccount: istio-ingress-service-account
+      serviceAccountName: istio-ingress-service-account
+      terminationGracePeriodSeconds: 30

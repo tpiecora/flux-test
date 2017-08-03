@@ -1,0 +1,85 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    component: identity
+    k8s-app: tectonic-identity
+  name: tectonic-identity
+  namespace: tectonic-system
+spec:
+  minReadySeconds: 30
+  replicas: 2
+  selector:
+    matchLabels:
+      component: identity
+      k8s-app: tectonic-identity
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        component: identity
+        k8s-app: tectonic-identity
+      name: tectonic-identity
+    spec:
+      containers:
+      - command:
+        - /usr/local/bin/dex
+        - serve
+        - /etc/dex/config.yaml
+        image: quay.io/coreos/dex:v2.4.1
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /identity/healthz
+            port: 5556
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+        name: tectonic-identity
+        ports:
+        - containerPort: 5556
+          protocol: TCP
+        - containerPort: 5557
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 50Mi
+          requests:
+            cpu: 100m
+            memory: 50Mi
+        terminationMessagePath: /dev/termination-log
+        volumeMounts:
+        - mountPath: /etc/dex
+          name: config
+        - mountPath: /etc/tectonic-identity-grpc-server-secret
+          name: tectonic-identity-grpc-server-secret
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: coreos-pull-secret
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: config.yaml
+            path: config.yaml
+          name: tectonic-identity
+        name: config
+      - name: tectonic-identity-grpc-server-secret
+        secret:
+          defaultMode: 420
+          secretName: tectonic-identity-grpc-server-secret

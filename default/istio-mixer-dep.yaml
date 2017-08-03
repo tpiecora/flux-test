@@ -1,0 +1,45 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    istio: mixer
+  name: istio-mixer
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      istio: mixer
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        alpha.istio.io/sidecar: ignore
+      labels:
+        istio: mixer
+    spec:
+      containers:
+      - args:
+        - --configStoreURL=fs:///etc/opt/mixer/configroot
+        - --logtostderr
+        - -v
+        - "3"
+        image: docker.io/istio/mixer:0.1.6
+        imagePullPolicy: Always
+        name: mixer
+        ports:
+        - containerPort: 9091
+          protocol: TCP
+        - containerPort: 9094
+          protocol: TCP
+        - containerPort: 42422
+          protocol: TCP
+        terminationMessagePath: /dev/termination-log
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

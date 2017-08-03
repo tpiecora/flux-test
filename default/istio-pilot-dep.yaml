@@ -1,0 +1,65 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    istio: pilot
+  name: istio-pilot
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      istio: pilot
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        alpha.istio.io/sidecar: ignore
+      labels:
+        istio: pilot
+    spec:
+      containers:
+      - args:
+        - discovery
+        - -v
+        - "2"
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: docker.io/istio/pilot:0.1.6
+        imagePullPolicy: Always
+        name: discovery
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        terminationMessagePath: /dev/termination-log
+      - args:
+        - apiserver
+        - -v
+        - "2"
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: docker.io/istio/pilot:0.1.6
+        imagePullPolicy: Always
+        name: apiserver
+        ports:
+        - containerPort: 8081
+          protocol: TCP
+        terminationMessagePath: /dev/termination-log
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      serviceAccount: istio-pilot-service-account
+      serviceAccountName: istio-pilot-service-account
+      terminationGracePeriodSeconds: 30

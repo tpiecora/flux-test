@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servicegraph
+  namespace: default
+spec:
+  clusterIP: 10.3.90.189
+  ports:
+  - name: http
+    nodePort: 30845
+    port: 8088
+    protocol: TCP
+    targetPort: 8088
+  selector:
+    app: servicegraph
+  sessionAffinity: None
+  type: LoadBalancer

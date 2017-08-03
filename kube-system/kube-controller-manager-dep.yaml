@@ -1,0 +1,80 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: kube-controller-manager
+    tier: control-plane
+  name: kube-controller-manager
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: kube-controller-manager
+      pod-anti-affinity: kube-controller-manager-1.6.7-tectonic.1
+      tier: control-plane
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ""
+      labels:
+        k8s-app: kube-controller-manager
+        pod-anti-affinity: kube-controller-manager-1.6.7-tectonic.1
+        tier: control-plane
+    spec:
+      containers:
+      - command:
+        - ./hyperkube
+        - controller-manager
+        - --allocate-node-cidrs=true
+        - --configure-cloud-routes=false
+        - --cluster-cidr=10.2.0.0/16
+        - --root-ca-file=/etc/kubernetes/secrets/ca.crt
+        - --service-account-private-key-file=/etc/kubernetes/secrets/service-account.key
+        - --leader-elect=true
+        - --node-monitor-grace-period=2m
+        - --pod-eviction-timeout=220s
+        - --cloud-provider=aws
+        image: quay.io/coreos/hyperkube:v1.6.7_coreos.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 10252
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 15
+        name: kube-controller-manager
+        terminationMessagePath: /dev/termination-log
+        volumeMounts:
+        - mountPath: /etc/kubernetes/secrets
+          name: secrets
+          readOnly: true
+        - mountPath: /etc/ssl/certs
+          name: ssl-host
+          readOnly: true
+      dnsPolicy: Default
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: secrets
+        secret:
+          defaultMode: 420
+          secretName: kube-controller-manager
+      - hostPath:
+          path: /usr/share/ca-certificates
+        name: ssl-host

@@ -1,0 +1,49 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    name: flux
+  name: flux
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: flux
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        name: flux
+    spec:
+      containers:
+      - args:
+        - --memcached-hostname=memcached.default.svc.cluster.local
+        - --memcached-timeout=100ms
+        - --memcached-service=memcached
+        - --registry-cache-expiry=20m
+        - --git-url=git@github.com:tpiecora/flux-test
+        - --git-branch=master
+        - --ssh-keygen-type=ed25519
+        image: quay.io/weaveworks/flux:1.0.0-beta
+        imagePullPolicy: IfNotPresent
+        name: flux
+        ports:
+        - containerPort: 3030
+          protocol: TCP
+        terminationMessagePath: /dev/termination-log
+        volumeMounts:
+        - mountPath: /etc/fluxd/ssh
+          name: git-key
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      serviceAccount: flux
+      serviceAccountName: flux
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: git-key
+        secret:
+          defaultMode: 420
+          secretName: flux-git-deploy

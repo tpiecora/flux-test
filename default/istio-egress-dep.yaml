@@ -1,0 +1,42 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    istio: egress
+  name: istio-egress
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      istio: egress
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        istio: egress
+    spec:
+      containers:
+      - args:
+        - proxy
+        - egress
+        - -v
+        - "2"
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: docker.io/istio/proxy_debug:0.1.6
+        imagePullPolicy: Always
+        name: proxy
+        terminationMessagePath: /dev/termination-log
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

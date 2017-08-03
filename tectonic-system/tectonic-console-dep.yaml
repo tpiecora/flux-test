@@ -1,0 +1,163 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    component: ui
+    k8s-app: tectonic-console
+  name: tectonic-console
+  namespace: tectonic-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      component: ui
+      k8s-app: tectonic-console
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        component: ui
+        k8s-app: tectonic-console
+      name: tectonic-console
+    spec:
+      containers:
+      - command:
+        - /opt/bridge/bin/bridge
+        env:
+        - name: BRIDGE_K8S_MODE
+          value: in-cluster
+        - name: BRIDGE_K8S_AUTH
+          value: oidc
+        - name: BRIDGE_K8S_PUBLIC_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              key: kubeAPIServerURL
+              name: tectonic-config
+        - name: BRIDGE_LISTEN
+          value: http://0.0.0.0:8080
+        - name: BRIDGE_BASE_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: consoleBaseAddress
+              name: tectonic-config
+        - name: BRIDGE_BASE_PATH
+          value: /
+        - name: BRIDGE_PUBLIC_DIR
+          value: /opt/bridge/static
+        - name: BRIDGE_USER_AUTH
+          value: oidc
+        - name: BRIDGE_USER_AUTH_OIDC_ISSUER_URL
+          valueFrom:
+            configMapKeyRef:
+              key: issuer
+              name: tectonic-identity
+        - name: BRIDGE_USER_AUTH_OIDC_CLIENT_ID
+          valueFrom:
+            configMapKeyRef:
+              key: consoleClientID
+              name: tectonic-identity
+        - name: BRIDGE_USER_AUTH_OIDC_CLIENT_SECRET
+          valueFrom:
+            configMapKeyRef:
+              key: consoleSecret
+              name: tectonic-identity
+        - name: BRIDGE_KUBECTL_CLIENT_ID
+          valueFrom:
+            configMapKeyRef:
+              key: kubectlClientID
+              name: tectonic-identity
+        - name: BRIDGE_KUBECTL_CLIENT_SECRET
+          valueFrom:
+            configMapKeyRef:
+              key: kubectlSecret
+              name: tectonic-identity
+        - name: BRIDGE_TECTONIC_VERSION
+          valueFrom:
+            configMapKeyRef:
+              key: tectonicVersion
+              name: tectonic-config
+        - name: BRIDGE_CA_FILE
+          value: /etc/tectonic-ca-cert-secret/ca-cert
+        - name: BRIDGE_LICENSE_FILE
+          value: /etc/tectonic/licenses/license
+        - name: BRIDGE_DEX_CLIENT_CERT_FILE
+          value: /etc/tectonic-identity-grpc-client-secret/tls-cert
+        - name: BRIDGE_DEX_CLIENT_KEY_FILE
+          value: /etc/tectonic-identity-grpc-client-secret/tls-key
+        - name: BRIDGE_DEX_API_HOST
+          valueFrom:
+            configMapKeyRef:
+              key: dexAPIHost
+              name: tectonic-config
+        image: quay.io/coreos/tectonic-console:v1.7.4
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: tectonic-console
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 50Mi
+          requests:
+            cpu: 100m
+            memory: 50Mi
+        terminationMessagePath: /dev/termination-log
+        volumeMounts:
+        - mountPath: /etc/tectonic-ca-cert-secret
+          name: tectonic-ca-cert-secret
+          readOnly: true
+        - mountPath: /etc/ssl/certs
+          name: ssl-certs-host
+          readOnly: true
+        - mountPath: /usr/share/ca-certificates
+          name: ca-certs-host
+          readOnly: true
+        - mountPath: /etc/tectonic/licenses
+          name: tectonic-license-secret
+          readOnly: true
+        - mountPath: /etc/tectonic-identity-grpc-client-secret
+          name: tectonic-identity-grpc-client-secret
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: coreos-pull-secret
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: tectonic-ca-cert-secret
+        secret:
+          defaultMode: 420
+          secretName: tectonic-ca-cert-secret
+      - hostPath:
+          path: /etc/ssl/certs
+        name: ssl-certs-host
+      - hostPath:
+          path: /usr/share/ca-certificates
+        name: ca-certs-host
+      - name: tectonic-license-secret
+        secret:
+          defaultMode: 420
+          secretName: tectonic-license-secret
+      - name: tectonic-identity-grpc-client-secret
+        secret:
+          defaultMode: 420
+          secretName: tectonic-identity-grpc-client-secret

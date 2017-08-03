@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    component: identity
+    k8s-app: tectonic-identity
+  name: tectonic-identity
+  namespace: tectonic-system
+spec:
+  clusterIP: 10.3.146.59
+  ports:
+  - name: worker
+    port: 5556
+    protocol: TCP
+    targetPort: 5556
+  selector:
+    component: identity
+    k8s-app: tectonic-identity
+  sessionAffinity: None
+  type: ClusterIP
